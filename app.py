@@ -12,7 +12,6 @@ LINE_CHANNEL_SECRET = os.environ.get('CHANNEL_SECRET')
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# 데이터 저장 구조
 user_chat_counts = {}
 
 def get_user_name(group_id, user_id):
