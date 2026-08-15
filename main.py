@@ -20,26 +20,15 @@ from linebot.v3.webhooks import (
 
 app = Flask(__name__)
 
-# 환경 변수 로드
 CHANNEL_ACCESS_TOKEN = os.environ.get("CHANNEL_ACCESS_TOKEN")
 CHANNEL_SECRET = os.environ.get("CHANNEL_SECRET")
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
-# 데이터 구조: 
-# { 
-#     'chat_key': {
-#         'last_reset': 'YYYY-MM-DD', 
-#         'users': {
-#             'user_id': {'display_name': str, 'count': int, 'total_under_count': int}
-#         }
-#     }
-# }
 user_chat_counts = {}
 
 def get_user_name(group_id, user_id):
-    """그룹 멤버의 디스플레이 닉네임을 가져옵니다."""
     try:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
@@ -49,60 +38,45 @@ def get_user_name(group_id, user_id):
         return "사용자"
 
 def check_and_reset(chat_key):
-    """날짜 변경 시 마디 수를 초기화하고, 전날 미달자에게 총 미달 횟수를 누적 및 경고합니다."""
     today = datetime.date.today().strftime('%Y-%m-%d')
-    
     if chat_key not in user_chat_counts:
         user_chat_counts[chat_key] = {'last_reset': today, 'users': {}}
         return
     
     room_data = user_chat_counts[chat_key]
-    
     if room_data['last_reset'] != today:
         yesterday_users = room_data['users']
-        
         for user in yesterday_users.values():
             if user['count'] < 30:
                 user['total_under_count'] = user.get('total_under_count', 0) + 1
         
         under_active = [u for u in yesterday_users.values() if u['count'] < 30]
-        
         if under_active:
             under_active.sort(key=lambda x: x['count'])
             warning_msg = "📢 [어제 활동 마감 알림]\n30마디를 채우지 못한 멤버가 있습니다.\n"
             for user in under_active:
                 warning_msg += f"\n• {user['display_name']} ({user['count']}마디) - 총 미달 {user['total_under_count']}회 ⚠️"
-            
             try:
                 with ApiClient(configuration) as api_client:
                     line_bot_api = MessagingApi(api_client)
-                    line_bot_api.push_message(
-                        chat_key,
-                        PushMessageRequest(
-                            to=chat_key,
-                            messages=[TextMessage(text=warning_msg)]
-                        )
-                    )
+                    line_bot_api.push_message(chat_key, PushMessageRequest(to=chat_key, messages=[TextMessage(text=warning_msg)]))
             except Exception:
                 pass
         
         new_users_data = {}
         for user_id, user in yesterday_users.items():
-            new_users_data[user_id] = {
-                'display_name': user['display_name'],
-                'count': 0,
-                'total_under_count': user['total_under_count']
-            }
-            
+            new_users_data[user_id] = {'display_name': user['display_name'], 'count': 0, 'total_under_count': user['total_under_count']}
         room_data['users'] = new_users_data
         room_data['last_reset'] = today
 
-@app.route("/callback", methods=['POST'])
+@app.route("/callback", methods=['POST', 'GET'])
 def callback():
+    if request.method == 'GET':
+        return 'OK', 200
+
     signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
     
-    # 라인 개발자 센터 Verify 검증 요청 대응
     if not signature and not body:
         return 'OK'
     
@@ -112,25 +86,15 @@ def callback():
         abort(400)
     except Exception:
         pass
-        
     return 'OK'
 
 @handler.add(JoinEvent)
 def handle_join(event):
     try:
-        welcome_msg = (
-            "안녕하세요! 마디 봇입니다. 💬\n"
-            "매일 대화량을 측정하고 30마디 미달 시 알려드려요!\n"
-            "사용 가능한 명령어는 /도움말 을 입력해주세요."
-        )
+        welcome_msg = "안녕하세요! 마디 봇입니다. 💬\n/도움말 을 입력해주세요."
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
-            line_bot_api.reply_message(
-                ReplyMessageRequest(
-                    reply_token=event.reply_token,
-                    messages=[TextMessage(text=welcome_msg)]
-                )
-            )
+            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=welcome_msg)]))
     except Exception:
         pass
     return 'OK'
@@ -142,13 +106,7 @@ def handle_leave(event):
         if chat_key:
             with ApiClient(configuration) as api_client:
                 line_bot_api = MessagingApi(api_client)
-                line_bot_api.push_message(
-                    chat_key,
-                    PushMessageRequest(
-                        to=chat_key,
-                        messages=[TextMessage(text="#ㄴㄱ (멤버가 퇴장하셨습니다 😢)")]
-                    )
-                )
+                line_bot_api.push_message(chat_key, PushMessageRequest(to=chat_key, messages=[TextMessage(text="#ㄴㄱ (멤버가 퇴장하셨습니다 😢)")]))
     except Exception:
         pass
     return 'OK'
@@ -163,16 +121,11 @@ def handle_message(event):
     user_text = event.message.text.strip()
 
     check_and_reset(chat_key)
-    
     user_data = user_chat_counts[chat_key]['users']
 
     if user_id not in user_data:
         user_name = get_user_name(group_id, user_id) if group_id else "사용자"
-        user_data[user_id] = {
-            'display_name': user_name, 
-            'count': 0, 
-            'total_under_count': 0
-        }
+        user_data[user_id] = {'display_name': user_name, 'count': 0, 'total_under_count': 0}
 
     reply_msg = ""
 
@@ -180,13 +133,11 @@ def handle_message(event):
         count = user_data[user_id]['count']
         name = user_data[user_id]['display_name']
         reply_msg = f"📊 {name}님의 현재 마디 수: {count}마디"
-
     elif user_text == "/순위":
         sorted_users = sorted(user_data.values(), key=lambda x: x['count'], reverse=True)
         reply_msg = "🏆 오늘의 마디 수 순위 🏆\n"
         for idx, user in enumerate(sorted_users, 1):
             reply_msg += f"\n{idx}위. {user['display_name']} ({user['count']}개)"
-
     elif user_text in ["/미달", "/경고", "/30마디"]:
         under_active = [u for u in user_data.values() if u['count'] < 30]
         if not under_active:
@@ -196,23 +147,11 @@ def handle_message(event):
             reply_msg = "⚠️ 30마디 미만 활동자 목록 ⚠️\n"
             for user in under_active:
                 reply_msg += f"\n• {user['display_name']}: {user['count']}마디 (총 미달 {user.get('total_under_count', 0)}회)"
-            reply_msg += "\n\n소통에 더 참여해 주세요! 💬"
-
     elif user_text in ["/도움말", "/명령어"]:
-        reply_msg = (
-            "🤖 [마디 봇 명령어 안내]\n\n"
-            "• /마디: 내 마디 수 확인\n"
-            "• /순위: 전체 마디 순위 확인\n"
-            "• /미달: 30마디 미만 멤버 확인\n"
-            "• /초기화: 강제 초기화\n"
-            "• (멤버 퇴장 시 봇이 #ㄴㄱ 자동 알림 전송)\n"
-            "• (매일 자정 이후 첫 메시지 시 자동 리셋 및 미달 경고)"
-        )
-
+        reply_msg = "🤖 명령어: /마디, /순위, /미달, /초기화"
     elif user_text == "/초기화":
         user_chat_counts[chat_key]['users'] = {}
-        reply_msg = "🔄 현재 방의 데이터가 초기화되었습니다."
-
+        reply_msg = "🔄 초기화되었습니다."
     else:
         user_data[user_id]['count'] += 1
         return
@@ -220,12 +159,7 @@ def handle_message(event):
     try:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
-            line_bot_api.reply_message(
-                ReplyMessageRequest(
-                    reply_token=event.reply_token,
-                    messages=[TextMessage(text=reply_msg)]
-                )
-            )
+            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_msg)]))
     except Exception:
         pass
 
