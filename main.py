@@ -101,12 +101,18 @@ def check_and_reset(chat_key):
 def callback():
     signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
+    
+    # 라인 개발자 센터 Verify 검증 요청 대응
+    if not signature and not body:
+        return 'OK'
     
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
+    except Exception:
+        pass
+        
     return 'OK'
 
 @handler.add(JoinEvent)
