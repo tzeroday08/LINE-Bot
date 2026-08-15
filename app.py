@@ -31,6 +31,11 @@ def callback():
         abort(400)
     return 'OK'
 
+# 그룹에 들어올 때 튕기지 않도록 가입 이벤트 핸들러 추가
+@handler.add(JoinEvent)
+def handle_join(event):
+    return 'OK'
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     source_id = getattr(event.source, 'group_id', None) or event.source.user_id
@@ -45,7 +50,6 @@ def handle_message(event):
         user_name = get_user_name(source_id, user_id) if is_group else "사용자"
         user_chat_counts[source_id][user_id] = {'display_name': user_name, 'count': 0}
 
-    # 명령어별 분기 처리
     if user_text in ["!마디", "!마디수"]:
         count = user_chat_counts[source_id][user_id]['count']
         name = user_chat_counts[source_id][user_id]['display_name']
