@@ -71,22 +71,19 @@ def check_and_reset(chat_key):
 
 @app.route("/callback", methods=['POST', 'GET'])
 def callback():
+    # 어떤 요청이 오든 502를 방지하기 위해 무조건 200 OK 응답 반환
     if request.method == 'GET':
         return 'OK', 200
 
-    signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
-    
-    if not signature and not body:
-        return 'OK'
+    signature = request.headers.get('X-Line-Signature', '')
     
     try:
         handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
     except Exception:
         pass
-    return 'OK'
+        
+    return 'OK', 200
 
 @handler.add(JoinEvent)
 def handle_join(event):
@@ -166,4 +163,3 @@ def handle_message(event):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
