@@ -87,7 +87,7 @@ def callback():
         abort(400)
     return 'OK'
 
-# 1. 봇 자신이 그룹에 초대되었을 때
+# 1. 봇 자신이 그룹에 초대되었을 때 (튕김 방지 및 환영 인사)
 @handler.add(JoinEvent)
 def handle_join(event):
     try:
@@ -112,7 +112,6 @@ def handle_leave(event):
         pass
     return 'OK'
 
-@app.route("/message_event", methods=['POST']) # 내부 참조용 주석이며 기존 콜백 사용
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     group_id = getattr(event.source, 'group_id', None)
@@ -127,7 +126,7 @@ def handle_message(event):
     
     user_data = user_chat_counts[chat_key]['users']
 
-    # 신규 사용자 등록 (또는 새 멤버가 말을 걸었을 때 #입장 자동 감지 겸용 처리 가능)
+    # 신규 사용자 등록
     if user_id not in user_data:
         user_name = get_user_name(group_id, user_id) if group_id else "사용자"
         user_data[user_id] = {
@@ -135,9 +134,6 @@ def handle_message(event):
             'count': 0, 
             'total_under_count': 0
         }
-        # 새 유저가 첫 마디를 할 때 환영 메시지 출력 원할 시 주석 해제
-        # line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"#입장 ({user_name}님 환영합니다! 👋)"))
-        # return
 
     # 1. 내 마디 수 확인
     if user_text in ["/마디", "/마디수"]:
@@ -175,7 +171,7 @@ def handle_message(event):
             "• /순위: 전체 마디 순위 확인\n"
             "• /미달: 30마디 미만 멤버 확인\n"
             "• /초기화: 강제 초기화\n"
-            "• (멤버 입장/퇴장 시 봇이 자동 알림 전송)\n"
+            "• (멤버 퇴장 시 봇이 #ㄴㄱ 자동 알림 전송)\n"
             "• (매일 자정 이후 첫 메시지 시 자동 리셋 및 미달 경고)"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
