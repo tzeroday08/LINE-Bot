@@ -1,8 +1,7 @@
 import datetime
 import os
-from flask import Flask, abort, request
+from flask import Flask, request
 from linebot.v3 import WebhookHandler
-from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
     ApiClient,
     Configuration,
@@ -77,7 +76,7 @@ def callback():
     signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
     
-    if '"events":[]' in body or not body:
+    if not body or '"events":[]' in body:
         return 'OK', 200
     
     try:
@@ -90,10 +89,9 @@ def callback():
 @handler.add(JoinEvent)
 def handle_join(event):
     try:
-        welcome_msg = "#입장"
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
-            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=welcome_msg)]))
+            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text="#입장")]))
     except Exception:
         pass
     return 'OK'
@@ -171,4 +169,3 @@ def handle_message(event):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
