@@ -27,7 +27,6 @@ handler = WebhookHandler(CHANNEL_SECRET)
 
 user_chat_counts = {}
 
-# 헬스 체크용 루트 경로 추가 (Railway 배포 필수)
 @app.route("/", methods=['GET'])
 def home():
     return "Line Bot is running!", 200
