@@ -90,27 +90,7 @@ def callback():
         
     return 'OK', 200
 
-@handler.add(JoinEvent)
-def handle_join(event):
-    try:
-        with ApiClient(configuration) as api_client:
-            line_bot_api = MessagingApi(api_client)
-            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text="#입장")]))
-    except Exception:
-        pass
-    return 'OK'
 
-@handler.add(LeaveEvent)
-def handle_leave(event):
-    try:
-        chat_key = getattr(event.source, 'group_id', None) or getattr(event.source, 'room_id', None)
-        if chat_key:
-            with ApiClient(configuration) as api_client:
-                line_bot_api = MessagingApi(api_client)
-                line_bot_api.push_message(chat_key, PushMessageRequest(to=chat_key, messages=[TextMessage(text="#ㄴㄱ (멤버가 퇴장하셨습니다 😢)")]))
-    except Exception:
-        pass
-    return 'OK'
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
