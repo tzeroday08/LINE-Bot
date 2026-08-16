@@ -85,12 +85,18 @@ def callback():
     
     try:
         handler.handle(body, signature)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"웹훅 에러 발생: {e}")
         
     return 'OK', 200
 
+@handler.add(JoinEvent)
+def handle_join(event):
+    return 'OK'
 
+@handler.add(LeaveEvent)
+def handle_leave(event):
+    return 'OK'
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
