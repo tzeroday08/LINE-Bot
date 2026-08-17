@@ -142,7 +142,12 @@ def handle_message(event):
         )
         messages_to_reply = [TextMessage(text=text_msg)]
     elif user_text in ["/매너", "/ㅁㄴ"]:
-        messages_to_reply = [TextMessage(text="💬 즐겁고 매너 있는 채팅 공간을 만들어주세요!")]
+        messages_to_reply = [
+            StickerMessage(package_id="446", sticker_id="1988"),
+            StickerMessage(package_id="446", sticker_id="1989"),
+            StickerMessage(package_id="446", sticker_id="1990")
+        ]
+
     elif user_text in ["/담타", "/ㄷㅌ"]:
         # 담배 사진 Raw 링크 적용
         img_url_damta = "https://raw.githubusercontent.com/tzeroday08/LINE-Bot/main/1786928966606.jpg"
