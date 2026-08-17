@@ -42,37 +42,16 @@ def get_user_name(group_id, room_id, user_id):
             else:
                 return "사용자"
             return profile.display_name
-    except Exception as e:
-        print(f"프로필 조회 에러: {e}")
+    except Exception:
         return "사용자"
 
-def sync_group_members(group_id, room_id, user_data):
-    try:
-        with ApiClient(configuration) as api_client:
-            line_bot_api = MessagingApi(api_client)
-            member_ids = []
-            if group_id:
-                response = line_bot_api.get_group_member_user_ids(group_id)
-                member_ids = response.member_ids
-            elif room_id:
-                response = line_bot_api.get_room_member_user_ids(room_id)
-                member_ids = response.member_ids
-            
-            for uid in member_ids:
-                if uid not in user_data:
-                    name = get_user_name(group_id, room_id, uid)
-                    user_data[uid] = {'display_name': name, 'count': 0, 'total_under_count': 0}
-    except Exception as e:
-        print(f"⚠️ 멤버 목록 조회 차단됨 (라인 API 정책): {e}")
-
-def check_and_reset(chat_key, group_id, room_id):
+def check_and_reset(chat_key):
     today = datetime.date.today().strftime('%Y-%m-%d')
     if chat_key not in user_chat_counts:
         user_chat_counts[chat_key] = {'last_reset': today, 'users': {}}
+        return
     
     room_data = user_chat_counts[chat_key]
-    sync_group_members(group_id, room_id, room_data['users'])
-
     if room_data['last_reset'] != today:
         yesterday_users = room_data['users']
         for user in yesterday_users.values():
@@ -133,10 +112,8 @@ def handle_message(event):
     user_id = event.source.user_id
     user_text = event.message.text.strip()
 
-    check_and_reset(chat_key, group_id, room_id)
+    check_and_reset(chat_key)
     user_data = user_chat_counts[chat_key]['users']
-
-    sync_group_members(group_id, room_id, user_data)
 
     if user_id not in user_data:
         user_name = get_user_name(group_id, room_id, user_id)
@@ -187,4 +164,3 @@ def handle_message(event):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
