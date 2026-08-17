@@ -31,22 +31,48 @@ user_chat_counts = {}
 def home():
     return "Line Bot is running!", 200
 
-def get_user_name(group_id, user_id):
+def get_user_name(group_id, room_id, user_id):
     try:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
-            profile = line_bot_api.get_group_member_profile(group_id, user_id)
+            if group_id:
+                profile = line_bot_api.get_group_member_profile(group_id, user_id)
+            elif room_id:
+                profile = line_bot_api.get_room_member_profile(room_id, user_id)
+            else:
+                return "사용자"
             return profile.display_name
     except Exception:
         return "사용자"
 
-def check_and_reset(chat_key):
+def sync_group_members(group_id, room_id, user_data):
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            member_ids = []
+            if group_id:
+                response = line_bot_api.get_group_member_user_ids(group_id)
+                member_ids = response.member_ids
+            elif room_id:
+                response = line_bot_api.get_room_member_user_ids(room_id)
+                member_ids = response.member_ids
+            
+            for uid in member_ids:
+                if uid not in user_data:
+                    name = get_user_name(group_id, room_id, uid)
+                    user_data[uid] = {'display_name': name, 'count': 0, 'total_under_count': 0}
+    except Exception:
+        pass
+
+def check_and_reset(chat_key, group_id, room_id):
     today = datetime.date.today().strftime('%Y-%m-%d')
     if chat_key not in user_chat_counts:
         user_chat_counts[chat_key] = {'last_reset': today, 'users': {}}
-        return
     
     room_data = user_chat_counts[chat_key]
+    
+    sync_group_members(group_id, room_id, room_data['users'])
+
     if room_data['last_reset'] != today:
         yesterday_users = room_data['users']
         for user in yesterday_users.values():
@@ -107,11 +133,13 @@ def handle_message(event):
     user_id = event.source.user_id
     user_text = event.message.text.strip()
 
-    check_and_reset(chat_key)
+    check_and_reset(chat_key, group_id, room_id)
     user_data = user_chat_counts[chat_key]['users']
 
+    sync_group_members(group_id, room_id, user_data)
+
     if user_id not in user_data:
-        user_name = get_user_name(group_id, user_id) if group_id else "사용자"
+        user_name = get_user_name(group_id, room_id, user_id)
         user_data[user_id] = {'display_name': user_name, 'count': 0, 'total_under_count': 0}
 
     reply_msg = ""
