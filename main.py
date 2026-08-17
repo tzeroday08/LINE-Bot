@@ -42,7 +42,8 @@ def get_user_name(group_id, room_id, user_id):
             else:
                 return "사용자"
             return profile.display_name
-    except Exception:
+    except Exception as e:
+        print(f"프로필 조회 에러: {e}")
         return "사용자"
 
 def sync_group_members(group_id, room_id, user_data):
@@ -61,8 +62,8 @@ def sync_group_members(group_id, room_id, user_data):
                 if uid not in user_data:
                     name = get_user_name(group_id, room_id, uid)
                     user_data[uid] = {'display_name': name, 'count': 0, 'total_under_count': 0}
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ 멤버 목록 조회 차단됨 (라인 API 정책): {e}")
 
 def check_and_reset(chat_key, group_id, room_id):
     today = datetime.date.today().strftime('%Y-%m-%d')
@@ -70,7 +71,6 @@ def check_and_reset(chat_key, group_id, room_id):
         user_chat_counts[chat_key] = {'last_reset': today, 'users': {}}
     
     room_data = user_chat_counts[chat_key]
-    
     sync_group_members(group_id, room_id, room_data['users'])
 
     if room_data['last_reset'] != today:
@@ -187,3 +187,4 @@ def handle_message(event):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+
